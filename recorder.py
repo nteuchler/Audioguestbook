@@ -9,11 +9,19 @@ import sounddevice as sd
 import soundfile as sf
 import numpy  # Make sure NumPy is loaded before it is used in the callback
 
+#Knappe ting
+from signal import pause
+from gpiozero import Button
+button = Button(2)
+
+
 assert numpy  # avoid "imported but unused" message (W0611)
 import threading
 
 is_recording = False
-
+             
+             
+             
 
 def int_or_str(text):
     """Helper function for argument parsing."""
@@ -70,9 +78,11 @@ def rec_unlimited():
         named_tuple = time.localtime() # get struct_time
         time_string = time.strftime("%m-%d-%Y %H-%M-%S", named_tuple)
         filename1 = "output"+' '+time_string
+        
         device_info = sd.query_devices(args.device, "input")
         # soundfile expects an int, sounddevice provides a float:
-        args.samplerate = int(device_info["default_samplerate"])
+        #args.samplerate = int(device_info["default_samplerate"])
+        args.samplerate = 44100
         args.filename = tempfile.mktemp(
             prefix=filename1, suffix=".wav", dir=""
         )
@@ -82,13 +92,15 @@ def rec_unlimited():
             args.filename,
             mode="x",
             samplerate=args.samplerate,
-            channels=args.channels,
+            #channels=args.channels,
+            channels=2,
             subtype=args.subtype,
         ) as file:
             with sd.InputStream(
                 samplerate=args.samplerate,
                 device=args.device,
-                channels=args.channels,
+                #channels=args.channels,
+                channels=2,
                 callback=callback,
             ):
                 print("Starting recording")
@@ -105,7 +117,8 @@ def rec_unlimited():
 
 
 def on_press(key):
-    if key == Key.space:
+    if key == Key.alt_l:
+        print("alt t pressed")
         global is_recording
         is_recording = False
     if key == Key.enter:
@@ -113,7 +126,8 @@ def on_press(key):
 
 
 def on_release(key):
-    if key == Key.space:
+    if key == Key.alt_l:
+        print("alt t released")
         global is_recording
         is_recording = True
         t = threading.Thread(target=rec_unlimited)
@@ -122,5 +136,31 @@ def on_release(key):
         return False
 
 
+# Button GPIO Shit
+def say_hello():
+    global is_recording
+    is_recording = False
+
+def say_goodbye():
+    print("farvel")
+    #Afspil introlyd
+    filename = "intro.wav"
+    data2, fs = sf.read(filename, dtype="float32")
+    sd.play(data2,fs)
+    status = sd.wait()
+    
+    #Begin recording
+    global is_recording
+    is_recording = True
+    t = threading.Thread(target=rec_unlimited)
+    t.start()
+
+button.when_released = say_goodbye
+button.when_pressed = say_hello
+while True:
+    pause()
+
 with Listener(on_press=on_press, on_release=on_release) as listener:
     listener.join()
+    
+    
